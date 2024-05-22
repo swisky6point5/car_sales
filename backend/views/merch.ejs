@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/merch.css" type="text/css">
+</head>
+<body>
+  	<div class="headerImage" style="background-image: url('http://localhost:9000/website-content/carbon.jpg');">
+		<img src="http://localhost:9000/website-content/logo.png">
+  	</div>
+
+  	<div class="content">
+    	<div class="navigation">
+      		<div class="navitem" onclick="window.location='http://localhost/car'">
+        		Autos
+      		</div>
+      		<div class="navitem"onclick="window.location='http://localhost/merch'">
+        		Merchandise
+      		</div>
+      		<div class="navitem"onclick="window.location='http://localhost/event'">
+        		Events
+      		</div>
+    	</div>
+    	<div class="main">
+      		<% merch.forEach((merchObject) => {%>
+			<div class="item">
+				<div class="productPicture" style="cursor: pointer; background-image: url('<%= merchObject.pictureLink %>')" onclick="location.href='<%= merchObject.pictureLink %>'"></div>
+				<div class="productInformation">
+					<div class="details">
+						<div class="name">
+							<%= merchObject.name %>
+						</div>
+						<div class="information">
+							<div><b><%= merchObject.description %></b></div>
+							<div><b><%= merchObject.type %></b></div>
+						</div>
+					</div>
+					<div class="buy">
+						<div class="price"><%= merchObject.price %> EUR</div>
+						<div style="display: flex; flex-direction: row;">
+							<div class="buyButton merch" merch_id="<%= merchObject.merchID %>">kaufen</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<% }); %>
+		</div>
+	</div>
+
+	<% if (Object.keys(session.user).length == 0) { %>
+	<form class="login" id="login">
+		<label for="inputEmail" id="inputEmailLabel">email</label>
+		<input type="text" class="textInput" id="inputEmail" required>
+		<label for="inputPassword" id="inputPasswordLabel">password</label>
+		<input type="password" class="textInput" id="inputPassword" required>
+		<button id="loginButton" onclick="login()">LOGIN</button>
+		<button id="registerButton" onclick="openRegister()">REGISTER</button>
+	</form>
+	<% } else { %>
+		<div class="welcome">
+			Willkommen:<br>
+			<%= session.user.firstName +" " +session.user.lastName%><br>
+			<button id="logoutButton" onclick="logout()">LOGOUT</button>
+		</div>
+	<% } %>
+	<div class="shoppingCart">
+		Ihr Warenkorb:
+		<div class="cartContent">
+			<% let sum = 0; if (Object.keys(session.cart).length == 0) {%>
+			<div class="item">
+				Ihr Warenkorb ist leer!
+			</div>
+			<% } else { session.cart.forEach((item) => {%>
+			<div class="item">
+				"<%= item.name %>": <%= item.price.toFixed(2) %> €
+			</div>
+		<% sum += item.price;})} %>
+		</div>
+		<div class="summary">
+			Sum <%= sum.toFixed(2) %> €
+		</div>
+		<div class="delete" onclick="deleteCart()">warenkorb leeren</div>
+	</div>
+
+	<!-- The other Modal xD -->
+	<div id="register" class="configurator">
+		<!-- Modal content -->
+		<div class="configurator-content" id="registerContent">
+			<span class="close" id="configuratorCloseButton" onclick="closeModal()">&times;</span>
+
+			<label for="inputEmailRegister" id="inputEmailLabel">email</label>
+			<input type="text" class="textInput" id="inputEmailRegister">
+			<label for="inputPasswordRegister" id="inputPasswordLabel">password</label>
+			<input type="password" class="textInput" id="inputPasswordRegister">
+			<label for="inputFirstNameRegister" id="inputFirstNameLabel">first name</label>
+			<input type="text" class="textInput" id="inputFirstNameRegister">
+			<label for="inputLastNameRegister" id="inputLastNameLabel">last name</label>
+			<input type="text" class="textInput" id="inputLastNameRegister">
+
+			<button id="loginButton" onclick="register()">REGISTER</button>
+
+		</div>
+	</div>	
+	
+	
+</body>
+<script src="/client.js"></script>
+</html>

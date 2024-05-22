@@ -1,0 +1,240 @@
+version: "3"
+
+services:
+# ------------------------- Backend Services -------------------------
+  # ------------------------- Webshop Backend -------------------------
+  backend:
+    build: ./backend/
+    depends_on:
+      - api-gw
+    ports:
+      - "80:80"
+    networks:
+      - carshop-vlan
+    environment:
+      - HOST_API_GATEWAY=api-gw
+      - SESSION_SECRET=CHANGEME123
+      - REDIS_HOST=redis-cache
+      - REDIS_PORT=6379
+    restart: unless-stopped
+
+  # ------------------------- API Gateway -------------------------
+  api-gw:
+    build: ./apigateway
+    depends_on:
+      - microservice-event
+      - microservice-car
+      - microservice-merch
+      - microservice-customer
+      - microservice-shoppingcart
+    environment:
+      - HOST_MICROSERVICE_EVENT=microservice-event
+      - HOST_MICROSERVICE_CAR=microservice-car
+      - HOST_MICROSERVICE_MERCH=microservice-merch
+      - HOST_MICROSERVICE_CUSTOMER=microservice-customer
+      - HOST_MICROSERVICE_SHOPPINGCART=microservice-shoppingcart
+    networks:
+      - carshop-vlan
+    healthcheck:
+      test: curl --fail http://localhost:80/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+# ------------------------- MICROSERVICES -------------------------
+  # ------------------------- Event Microservice -------------------------
+  microservice-event:
+    build: ./services/event
+    depends_on:
+      - event-db
+    environment:
+      - HOST_DB_EVENTS=event-db
+      - DB_PASSWORD=CHANGEME123
+    networks:
+      - carshop-vlan
+    healthcheck:
+      test: curl --fail http://localhost/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  event-db:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=CHANGEME123
+    volumes:
+      - event-db:/var/lib/mysql
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Car Microservice -------------------------
+  microservice-car:
+    build: ./services/car
+    depends_on:
+      - car-db
+    environment:
+      - HOST_DB_CAR=car-db
+      - DB_PASSWORD=CHANGEME123
+    networks:
+      - carshop-vlan
+    healthcheck:
+      test: curl --fail http://localhost/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  car-db:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=CHANGEME123
+    volumes:
+      - car-db:/var/lib/mysql
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Merchandise Microservice -------------------------
+  microservice-merch:
+    build: ./services/merchandise
+    depends_on:
+      - merch-db
+    environment:
+      - HOST_DB_MERCH=merch-db
+      - DB_PASSWORD=CHANGEME123
+    networks:
+      - carshop-vlan
+    healthcheck:
+      test: curl --fail http://localhost/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  merch-db:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=CHANGEME123
+    volumes:
+      - merch-db:/var/lib/mysql
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Customer Microservice -------------------------
+  microservice-customer:
+    build: ./services/customer
+    depends_on:
+      - customer-db
+    environment:
+      - SESSION_SECRET=CHANGEME123
+      - HOST_DB_CUSTOMER=customer-db
+      - DB_USER=root
+      - DB_PASSWORD=CHANGEME123
+      - REDIS_HOST=redis-cache
+      - REDIS_PORT=6379
+    networks:
+      - carshop-vlan
+    healthcheck:
+      test: curl --fail http://localhost/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  customer-db:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=CHANGEME123
+    volumes:
+      - customer-db:/var/lib/mysql
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Shopping-Cart Microservice -------------------------
+  microservice-shoppingcart:
+    build: ./services/shopping-cart
+    depends_on:
+      - redis-cache
+    environment:
+      - SESSION_SECRET=CHANGEME123
+      - REDIS_HOST=redis-cache
+      - REDIS_PORT=6379
+    networks:
+      - carshop-vlan
+    healthcheck:
+      test: curl --fail http://localhost/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+
+# ------------------------- MinIO BLOB Database -------------------------
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - 'minio:/data'
+    environment:
+      - MINIO_ROOT_USER=root
+      - MINIO_ROOT_PASSWORD=CHANGEME123
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Redis Cache -------------------------
+  redis-cache:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: CHANGEME123
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Redis Insight - Redis Admin GUI -------------------------
+  redis-insight:
+    image: redis/redisinsight:latest
+    depends_on:
+      - redis-cache
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight:/data
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+
+  # ------------------------- Adminer - mySQL Admin GUI -------------------------
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+    networks:
+      - carshop-vlan
+    restart: unless-stopped
+    
+
+volumes:
+  event-db:
+  car-db:
+  merch-db:
+  customer-db:
+  minio:
+  redis-insight:
+
+networks:
+  carshop-vlan: {}
