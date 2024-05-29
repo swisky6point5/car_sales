@@ -12,12 +12,16 @@ const crypto = require("crypto");
 	- sessionTimeout: Timeout for session Information stored in Redis-Cache.
 	  Cookies will have a TTL of 24hours ... sooo 24+1 should suffice?
 */ 
-const INITIALIZATION_VECTOR = Buffer.from(crypto.createHash('md5').update(process.env.SESSION_SECRET).digest("hex"), "hex");
+//const INITIALIZATION_VECTOR = Buffer.from(crypto.createHash('md5').update(process.env.SESSION_SECRET).digest("hex"), "hex");
 const HOST_DB_CUSTOMER = process.env.HOST_DB_CUSTOMER;
 const DB_USER = process.env.DB_USER;
 const DB_PASSWORD = process.env.DB_PASSWORD;
 const REDIS_URL = 'redis://' +process.env.REDIS_HOST +':' +process.env.REDIS_PORT;
-const sessionTimeout = 3600 * (24+1);
+const sessionTimeout = 3600 * 24 * 30;
+const emptySession = {
+	"cart": [],
+	"user": {}
+};
 
 /* 	Connect to Redis-client 
 */
@@ -59,7 +63,7 @@ app.post('/user/register', async (req, res) => {
 	const { userlogin, password, firstName, lastName } = req.body;
 	const salt = crypto.randomBytes(16).toString("hex");
 	const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, "sha512").toString("hex");
-	const salthash = salt +":" +hash;
+	const salthash = salt +":" +hash; // knife ... gun ... KNIFEGUN!!! https://www.youtube.com/watch?v=-YH3o2pf-Bc&t=2339s
 
 	sqlClient.promise().query(`SELECT * from customer WHERE email="${userlogin}" LIMIT 1`)
 	.then(sqlResponse => {
@@ -81,8 +85,6 @@ app.post('/user/register', async (req, res) => {
 app.post('/user/login', async (req, res) => {
 	const sess = JSON.parse(req.get("session"));
 	const sessionID = sess.sessionID;
-	const sessionToken = Buffer.from(sess.sessionToken,"base64");
-	const iv = INITIALIZATION_VECTOR;
 
 	const { userlogin, password } = req.body;
 
@@ -91,40 +93,34 @@ app.post('/user/login', async (req, res) => {
 		console.log("\x1b[41m ERROR: Login Failed: No User! \x1b[0m");
 		res.sendStatus(401);
 	} else {
-		redisClient.get(sessionID).then(encryptedSession => {
-			if (encryptedSession === null) {
-				console.log("\x1b[41m ERROR: no matching session in Redis-DB! \x1b[0m");
-				res.sendStatus(404);
+		redisClient.get(sessionID).then(currentSession => {
+			if (currentSession === null) {
+				console.log("\x1b[43m WARNING: No matching session in Redis-DB! New cache-entry will be created \x1b[0m");
+				redisClient.set(sessionID, JSON.stringify(emptySession));
+				currentSession = emptySession;
 			} else {
-				const user = sqlResponse[0][0];
-				const [dbSalt, dbHash] = user.password.split(":");
+				currentSession = JSON.parse(currentSession);
+			};
 
-				const hash = crypto.pbkdf2Sync(password, dbSalt, 1000, 64, "sha512").toString("hex");
-				const authSuccess = crypto.timingSafeEqual(Buffer.from(hash,"hex"),Buffer.from(dbHash,"hex"));
-				if (authSuccess) {
-					const cipher = crypto.createCipheriv("aes-256-cbc", sessionToken, iv);
-					const decipher = crypto.createDecipheriv("aes-256-cbc", sessionToken, iv);
-					let decryptedSession = decipher.update(encryptedSession, 'base64', 'utf8');
-					decryptedSession += decipher.final('utf8');
-		
-					decryptedSession = JSON.parse(decryptedSession);
-					console.log(`USER LOGIN: for Session: ${sess.sessionID}`);
-					decryptedSession.user = {
-						"email": user.email,
-						"firstName": user.firstName,
-						"lastName": user.lastName
-					};
-					decryptedSession = JSON.stringify(decryptedSession);
-		
-					encryptedSession = cipher.update(decryptedSession, 'utf8', 'base64');
-					encryptedSession += cipher.final('base64');
-		
-					redisClient.set(sessionID, encryptedSession);
-					res.sendStatus(200);
-				} else {
-					console.log("\x1b[41m ERROR: Password mismatch! \x1b[0m");
-					res.sendStatus(401);
+			const user = sqlResponse[0][0];
+			const [dbSalt, dbHash] = user.password.split(":");
+			const hash = crypto.pbkdf2Sync(password, dbSalt, 1000, 64, "sha512").toString("hex");
+			const authSuccess = crypto.timingSafeEqual(Buffer.from(hash,"hex"),Buffer.from(dbHash,"hex"));
+
+			if (authSuccess) {
+				console.log(`USER LOGIN: for Session: ${sessionID}`);
+				currentSession.user = {
+					"email": user.email,
+					"firstName": user.firstName,
+					"lastName": user.lastName
 				};
+				const currentSessionString = JSON.stringify(currentSession);
+	
+				redisClient.set(sessionID, currentSessionString);
+				res.sendStatus(200);
+			} else {
+				console.log("\x1b[41m ERROR: Password mismatch! \x1b[0m");
+				res.sendStatus(401);
 			};
 		});
 	};
@@ -133,31 +129,23 @@ app.post('/user/login', async (req, res) => {
 app.get('/user/logout', async (req, res) => {
 	const sess = JSON.parse(req.get("session"));
 	const sessionID = sess.sessionID;
-	const sessionToken = Buffer.from(sess.sessionToken,"base64");
-	const iv = INITIALIZATION_VECTOR;
 
-	redisClient.get(sessionID).then(encryptedSession => {
-		if (encryptedSession === null) {
-			console.log("\x1b[41m ERROR: no matching session in Redis-DB! \x1b[0m");
-			res.sendStatus(404);
+	redisClient.get(sessionID).then(currentSession => {
+		if (currentSession === null) {
+			console.log("\x1b[43m WARNING: No matching session in Redis-DB! New cache-entry will be created \x1b[0m");
+			redisClient.set(sessionID, JSON.stringify(emptySession));
+			currentSession = emptySession;
 		} else {
-			const cipher = crypto.createCipheriv("aes-256-cbc", sessionToken, iv);
-			const decipher = crypto.createDecipheriv("aes-256-cbc", sessionToken, iv);
-			let decryptedSession = decipher.update(encryptedSession, 'base64', 'utf8');
-			decryptedSession += decipher.final('utf8');
-
-			decryptedSession = JSON.parse(decryptedSession);
-			console.log(`USER LOGOUT: for Session: ${sess.sessionID}`);
-
-			decryptedSession.user = {};
-
-			decryptedSession = JSON.stringify(decryptedSession);
-			encryptedSession = cipher.update(decryptedSession, 'utf8', 'base64');
-			encryptedSession += cipher.final('base64');
-
-			redisClient.set(sessionID, encryptedSession);
-			res.sendStatus(200);
+			currentSession = JSON.parse(currentSession);
 		};
+
+		console.log(`USER LOGOUT: for Session: ${sessionID}`);
+
+		currentSession.user = {};
+
+		const currentSessionString = JSON.stringify(currentSession);
+		redisClient.set(sessionID, currentSessionString);
+		res.sendStatus(200);
 	});
 });
 
@@ -166,25 +154,20 @@ app.get('/user/logout', async (req, res) => {
 app.get('/session/get', async (req, res) => {
 	const sess = JSON.parse(req.get("session"));
 	const sessionID = sess.sessionID;
-	const sessionToken = Buffer.from(sess.sessionToken,"base64");
-	const iv = INITIALIZATION_VECTOR;
 
-	redisClient.get(sessionID).then(encryptedSession => {
-		if (encryptedSession === null) {
-			console.log("\x1b[41m ERROR: no matching session in Redis-DB! \x1b[0m");
-			res.sendStatus(401);
+	redisClient.get(sessionID).then(currentSession => {
+		if (currentSession === null) {
+			console.log("\x1b[43m WARNING: No matching session in Redis-DB! New cache-entry will be created \x1b[0m");
+			redisClient.set(sessionID, JSON.stringify(emptySession));
+			currentSession = emptySession;
 		} else {
-			const decipher = crypto.createDecipheriv("aes-256-cbc", sessionToken, iv);
-			let decryptedSession = decipher.update(encryptedSession, 'base64', 'utf8');
-			decryptedSession += decipher.final('utf8');
-			
-			decryptedSession = JSON.parse(decryptedSession);
-			["customerID", "password"].forEach(key => delete decryptedSession.user[key]);
-
-			res.status = 200;
-			res.setHeader('Content-Type', 'application/json');
-			res.send(JSON.stringify({"session": decryptedSession}));
+			currentSession = JSON.parse(currentSession);
 		};
+
+		res.status = 200;
+		res.setHeader('Content-Type', 'application/json');
+		console.log(JSON.stringify({"session": currentSession}));
+		res.send(JSON.stringify({"session": currentSession}));
 	});
 });
 
@@ -193,40 +176,14 @@ app.get('/session/get', async (req, res) => {
 */
 app.get('/session/create', async (req, res) => {
 	const sessionID = crypto.randomUUID();
-	const sessionToken = crypto.randomBytes(32);
-	const iv = INITIALIZATION_VECTOR;
-	const cipher = crypto.createCipheriv("aes-256-cbc", sessionToken, iv);
-	const emptySession = JSON.stringify({
-		"cart": [],
-		"user": {}
-	});
 
-	let encryptedSession = cipher.update(emptySession, 'utf8', 'base64');
-	encryptedSession += cipher.final('base64');
-
-	redisClient.set(sessionID, encryptedSession, {EX: sessionTimeout});
+	redisClient.set(sessionID, JSON.stringify(emptySession), {EX: sessionTimeout});
 	console.log("New Session created: " +sessionID)
 	res.status(200);
 	res.setHeader('Content-Type', 'application/json');
 	res.send(JSON.stringify({
-		"sessionID": sessionID,
-		"sessionToken": sessionToken.toString("base64")
+		"sessionID": sessionID
 	}));
-});
-
-/* 	Destroy session, made for testing purposes, endpoint is not used anymore ...
-*/
-app.get('/session/destroy', async (req, res) => {
-	const sess = JSON.parse(req.get("session"));
-	const sessionID = sess.sessionID;
-
-	redisClient.del(sessionID)
-	.then(response => {
-		console.log(`Session "${sessionID}" deleted, redis response: ${response}`);
-		res.status(200);
-		res.setHeader('Content-Type', 'application/json');
-		res.send("{}");
-	});
 });
 
 

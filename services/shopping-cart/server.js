@@ -8,6 +8,10 @@ const crypto = require("crypto");
 */ 
 const REDIS_URL = 'redis://' +process.env.REDIS_HOST +':' +process.env.REDIS_PORT;
 const INITIALIZATION_VECTOR = Buffer.from(crypto.createHash('md5').update(process.env.SESSION_SECRET).digest("hex"), "hex");
+const emptySession = {
+	"cart": [],
+	"user": {}
+};
 
 /* 	Connect to Redis-client 
 */
@@ -32,31 +36,32 @@ app.get('/health', (req, res) => {
 });
 
 /*	ENDPOINT - ShoppingCart
-	A lot of encryption / decryption ... on every update of the shopping cart
-	Not sure if this produces too mcuh load?!
+	removed all encryption/decryption!#
+	also new session will be created if session cookie is present after cache-entry was deleted for whatever reason
 	Also ... much wow, very repetition, many possibility for fail, such shitty style *doge meme* -> switch to OOP next time
 */
 app.get('/shoppingCart', async (req, res) => {
 	const sess = JSON.parse(req.get("session"));
 	const sessionID = sess.sessionID;
-	const key = Buffer.from(sess.sessionToken,"base64");
-	const iv = INITIALIZATION_VECTOR;
 
-	console.log(`Get ShoppingCart for Session: ${sess.sessionID}`);
-	redisClient.get(sess.sessionID)
-	.then((encryptedSession) => {
-		if (encryptedSession === null) {
-			console.log("\x1b[43m ERROR: No matching session in Redis-DB! \x1b[0m");
-			res.sendStatus(404);
+	console.log(`Get ShoppingCart for Session: ${sessionID}`);
+	redisClient.get(sessionID)
+	.then((currentSession) => {
+		if (currentSession === null) {
+
+			console.log("\x1b[43m WARNING: No matching session in Redis-DB! New cache-entry will be created \x1b[0m");
+
+			redisClient.set(sessionID, JSON.stringify(emptySession));
+			currentSession = emptySession;
 		} else {
-			const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-			let decryptedSession = decipher.update(encryptedSession, 'base64', 'utf8');
-			decryptedSession += decipher.final('utf8');
-
-			const DTOobject = JSON.parse(decryptedSession).cart;
-			console.log("Cart content: " + JSON.stringify(DTOobject));
-			res.send(JSON.stringify(DTOobject));
+			currentSession = JSON.parse(currentSession);
 		};
+
+		const DTOobject = currentSession.cart;
+		console.log("Cart content: " + JSON.stringify(DTOobject));
+		res.status(200);
+		res.setHeader('Content-Type', 'application/json');
+		res.send(JSON.stringify(DTOobject));
 	});
 });
 
@@ -64,66 +69,49 @@ app.post('/shoppingCart', async (req, res) => {
 	const sess = JSON.parse(req.get("session"));
 	const item = req.body;
 	const sessionID = sess.sessionID;
-	const key = Buffer.from(sess.sessionToken,"base64");
-	const iv = INITIALIZATION_VECTOR;
 
-	console.log(`Get ShoppingCart for Session: ${sess.sessionID}`);
-	redisClient.get(sess.sessionID)
-	.then((encryptedSession) => {
-		if (encryptedSession === null) {
-			console.log("\x1b[43m ERROR: No matching session in Redis-DB! \x1b[0m");
-			res.sendStatus(404);
+	console.log(`Get ShoppingCart for Session: ${sessionID}`);
+	redisClient.get(sessionID)
+	.then((currentSession) => {
+		if (currentSession === null) {
+			console.log("\x1b[43m WARNING: No matching session in Redis-DB! New cache-entry will be created \x1b[0m");
+			redisClient.set(sessionID, JSON.stringify(emptySession));
+			currentSession = emptySession;
 		} else {
-			const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-			const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-			let decryptedSession = decipher.update(encryptedSession, 'base64', 'utf8');
-			decryptedSession += decipher.final('utf8');
-
-			decryptedSession = JSON.parse(decryptedSession);
-			console.log(`Update ShoppingCart for Session: ${sess.sessionID}`);
-			decryptedSession.cart.push(item);
-			decryptedSession = JSON.stringify(decryptedSession);
-
-			encryptedSession = cipher.update(decryptedSession, 'utf8', 'base64');
-			encryptedSession += cipher.final('base64');
-
-			redisClient.set(sessionID, encryptedSession);
-
-			res.sendStatus(200);
+			currentSession = JSON.parse(currentSession);
 		};
+
+		console.log(`Update ShoppingCart for Session: ${sessionID}`);
+		currentSession.cart.push(item);
+		const currentSessionString = JSON.stringify(currentSession);
+
+		redisClient.set(sessionID, currentSessionString);
+
+		res.sendStatus(200);
 	});
 });
 
 app.delete('/shoppingCart', async (req, res) => {
 	const sess = JSON.parse(req.get("session"));
 	const sessionID = sess.sessionID;
-	const key = Buffer.from(sess.sessionToken,"base64");
-	const iv = INITIALIZATION_VECTOR;
 
-	console.log(`Get ShoppingCart for Session: ${sess.sessionID}`);
-	redisClient.get(sess.sessionID)
-	.then((encryptedSession) => {
-		if (encryptedSession === null) {
-			console.log("\x1b[43m ERROR: No matching session in Redis-DB! \x1b[0m");
-			res.sendStatus(404);
+	console.log(`Get ShoppingCart for Session: ${sessionID}`);
+	redisClient.get(sessionID)
+	.then((currentSession) => {
+		if (currentSession === null) {
+			console.log("\x1b[43m WARNING: No matching session in Redis-DB! New cache-entry will be created \x1b[0m");
+			redisClient.set(sessionID, JSON.stringify(emptySession));
+			currentSession = emptySession;
 		} else {
-			const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-			const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-			let decryptedSession = decipher.update(encryptedSession, 'base64', 'utf8');
-			decryptedSession += decipher.final('utf8');
+			currentSession = JSON.parse(currentSession);
+			console.log(`Delete ShoppingCart for Session: ${sessionID}`);
+			currentSession.cart = [];
+			const currentSessionString = JSON.stringify(currentSession);
 
-			decryptedSession = JSON.parse(decryptedSession);
-			console.log(`Delete ShoppingCart for Session: ${sess.sessionID}`);
-			decryptedSession.cart = [];
-			decryptedSession = JSON.stringify(decryptedSession);
-
-			encryptedSession = cipher.update(decryptedSession, 'utf8', 'base64');
-			encryptedSession += cipher.final('base64');
-
-			redisClient.set(sessionID, encryptedSession);
-
-			res.sendStatus(200);
+			redisClient.set(sessionID, currentSessionString);
 		};
+
+		res.sendStatus(200);
 	});
 });
 

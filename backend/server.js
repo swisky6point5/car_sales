@@ -226,10 +226,6 @@ app.get("/session", (req, res) => {
 				res.setHeader('Content-Type', 'application/json');
 				res.send(responseObject);
 			})
-		} else if (response.status == 404) {
-			console.log("\x1b[41m ERROR: GET:/session: Redis-DB Error! Deleting session cookie and forcing reload! \x1b[0m");
-			res.clearCookie("carshop_session");
-			res.redirect("/");
 		} else {
 			res.sendStatus(response.status);
 		};
@@ -252,10 +248,6 @@ app.post("/shoppingcart", (req, res) => {
 	.then(response => {
 		if (response.status == 200) {
 			res.sendStatus(200);
-		} else if (response.status == 404) {
-			console.log("\x1b[41m ERROR: POST:/shoppingcart: Redis-DB Error! Deleting session cookie and forcing reload! \x1b[0m");
-			res.cookie("carshop_session", "deleted", {expires: "Thu, 01 Jan 1970 00:00:00 GMT"});
-			res.redirect("/");
 		} else if (response.status == 401) {
 			console.log("\x1b[33m WARNING: POST:/shoppingcart: Could not fetch Item from DB \x1b[0m");
 			res.sendStatus(401);
@@ -275,10 +267,6 @@ app.delete("/shoppingcart", (req, res) => {
 		}
 	})
 	.then(response => {
-		if (response.status == 404) {
-			console.log("\x1b[41m ERROR: GET:/session: Redis-DB Error! Deleting session cookie and forcing reload! \x1b[0m");
-			res.clearCookie("carshop_session");
-		}
 		res.redirect("/");
 	});
 });
