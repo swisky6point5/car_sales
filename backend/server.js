@@ -115,6 +115,45 @@ app.get("/merch", async (req, res) => {
 	});
 });
 
+app.get("/checkout", async (req, res) => {
+	const sess = req.cookies.carshop_session;
+
+	fetch(HOST_API + "/session/get", {  // Update this endpoint as needed
+		headers: {
+			"session": sess
+		}
+	})
+	.then(response => {
+		if (response.status == 200) {
+			response.json()
+			.then(responseObject => {
+				console.log(JSON.stringify(responseObject));
+				res.render("checkout", { ...responseObject });
+			}).then(response => {
+				console.log(`Order successfully placed, deleting shopping cart "${JSON.parse(sess).sessionID}"`);
+				fetch(HOST_API + "/shoppingcart", {
+					method: "DELETE",
+					headers: {
+						"Content-Type": "application/json",
+						"session": sess
+					}
+				})
+				.then(response => {
+					if (response.status == 200) {
+						console.log(`Shopping cart "${JSON.parse(sess).sessionID}" successfully deleted`)
+					}
+				});
+			});
+		} else {
+			throw new Error(`\x1b[41m ERROR: GET:/checkout: Failed to load necessary data for Checkout-View! \x1b[0m`);
+		}
+	})
+	.catch(error => {
+		res.sendStatus(401);
+		console.log(error);
+	});
+});
+
 
 app.get("/event", async (req, res) => {
 	const sess = req.cookies.carshop_session;

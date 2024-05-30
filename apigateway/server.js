@@ -50,32 +50,6 @@ app.get('/checkservices', async (req, res) => {
 	});
 });
 
-/*	ENDPOINT - User
-	user related endpoints, all endpoints which are accessible should have been
-	sanitized in the backend, so no data-verification in POST-requests
-*/
-app.get('/event', (req, res) => {
-	const sess = req.get("session");
-	fetch(HOST_MICROSERVICE_CUSTOMER + "/user", {
-		method: "GET",
-		headers: {
-			"Content-Type": "application/json",
-			"session": sess
-		}
-	})
-	.then(response => {
-		if (response.status == 200) {
-			response.json()
-			.then(responseObject => {
-				console.log(responseObject);
-			});
-		} else {
-			res.sendStatus(response.status);
-		};
-	});
-
-});
-
 
 /*	ENDPOINT - Event
 	boilerplate
@@ -103,6 +77,10 @@ app.get('/content/event', (req, res) => {
 
 });
 
+/*	ENDPOINT - User
+	user related endpoints, all endpoints which are accessible should have been
+	sanitized in the backend, so no data-verification in POST-requests
+*/
 app.post('/user/register', async (req, res) => {
 	fetch(HOST_MICROSERVICE_CUSTOMER + "/user/register", {
 		method: "POST",
