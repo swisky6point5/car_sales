@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<link rel="stylesheet" href="/css/checkout.css" type="text/css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <header>
+         <div class="headerImage" style="background-image: url('http://localhost:9000/website-content/carbon.jpg');">
+            <img src="http://localhost:9000/website-content/logo.png">
+        </div>
+    </header>
+    <div class="content">
+        <aside class="navigation">
+        </aside>
+        <main class="main">
+            <section class="confirmation">
+                <h1>Vielen Dank für Ihre Bestellung!</h1>
+                <p>Ihre Bestellung wurde erfolgreich aufgegeben. Hier ist eine Zusammenfassung Ihrer Bestellung:</p>
+                <p>Bestellnummer: <span id="order-number"></span></p>
+                <div class="order-summary">
+                    <% let total = 0; if (Object.keys(session.cart).length === 0) { %>
+                        <p>Ihr Warenkorb ist leer!</p>
+                    <% } else { session.cart.forEach((item) => { %>
+                        <div class="order-item">
+                            <img src="<%= item.pictureLink %>" alt="<%= item.name %>" class="order-item-image">
+                            <div class="order-item-details">
+                                <p>Produktname: <%= item.name %></p>
+                                <p>Preis: <%= item.price.toFixed(2) %> €</p>
+                            </div>
+                        </div>
+                        <% total += item.price; %>
+                    <% })} %>
+                    <p><strong>Gesamtsumme: <%= total.toFixed(2) %> €</strong></p>
+                </div>
+                <button class="back-button" onclick="window.location.href='http://localhost/car'">Zurück zum Shop</button>
+            </section>
+        </main>
+    </div>
+    <script>
+        function generateOrderNumber() {
+            const orderNumber = 'ORD-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+            document.getElementById('order-number').textContent = orderNumber;
+        }
+
+        generateOrderNumber();
+    </script>
+</body>
+</html>
+

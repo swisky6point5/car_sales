@@ -76,9 +76,9 @@ body {
 }
 
 .shoppingCart .cartContent {
-    margin: 5px 0 60px 0;
-    height: 100%;
-    max-height: 100%;
+    margin: 5px 0 0 0;
+    height: 90%;
+    max-height: 90%;
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -88,9 +88,25 @@ body {
     text-decoration: underline;
     font-size: large;
     font-weight: 600;
-    bottom: 10px;
+    bottom: 50px;
     left: 10px;
     width: 100%;
+}
+
+.shoppingCart .buy {
+    position: absolute;
+    text-transform: uppercase;
+    font-weight: 100;
+    bottom: 10px;
+    left: 10px;
+    padding: 5px;
+    border: 1px solid #000;
+    border-radius: 5px;
+}
+
+.shoppingCart .buy:hover {
+    font-weight: 300;
+    cursor: pointer;
 }
 
 .shoppingCart .delete {

@@ -84,7 +84,10 @@
 		<div class="summary">
 			Sum <%= sum.toFixed(2) %> €
 		</div>
-		<div class="delete" onclick="deleteCart()">warenkorb leeren</div>
+		<% if (session.cart.length > 0) { %>
+		<div class="delete" onclick="deleteCart()">Warenkorb leeren</div>
+		<div class="buy" onclick="window.location='http://localhost/checkout'">Kaufen</div>
+		<% } %>
 	</div>
 
 	<!-- The Modal -->
