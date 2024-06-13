@@ -2,9 +2,10 @@
 
 - run "docker compose up --build" once in main directory!
 - import the following volumes:
-  - file "car_sales_car-db.tar.gz" -> volume "car-sales-car-db"
-  - file "car_sales_merch-db.tar.gz" -> volume "car-sales-merch-db"
-  - file "car_sales_minio.tar.gz" -> volume "car-sales-minio"
+  - file "car_sales_car-db.tar.gz" -> volume "car-sales-car-db" (otherwise site will not work)
+  - file "car_sales_merch-db.tar.gz" -> volume "car-sales-merch-db" (otherwise site will not work)
+  - file "car_sales_customer-db.tar.gz" -> volume "car-sales-customer-db" (otherwise login & register will not work)
+  - file "car_sales_minio.tar.gz" -> volume "car-sales-minio" (otherwise pictures won't load)
 
 homepage should work now!
 
