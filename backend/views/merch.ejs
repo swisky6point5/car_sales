@@ -50,14 +50,14 @@
 	</div>
 
 	<% if (Object.keys(session.user).length == 0) { %>
-	<form class="login" id="login">
+	<div class="login" id="login">
 		<label for="inputEmail" id="inputEmailLabel">email</label>
-		<input type="text" class="textInput" id="inputEmail" required>
+		<input type="text" class="textInput" id="inputEmail">
 		<label for="inputPassword" id="inputPasswordLabel">password</label>
-		<input type="password" class="textInput" id="inputPassword" required>
+		<input type="password" class="textInput" id="inputPassword">
 		<button id="loginButton" onclick="login()">LOGIN</button>
 		<button id="registerButton" onclick="openRegister()">REGISTER</button>
-	</form>
+	</div>
 	<% } else { %>
 		<div class="welcome">
 			Willkommen:<br>
